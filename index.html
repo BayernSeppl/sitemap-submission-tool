@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sitemap Submission Tool</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; color: white; margin-bottom: 30px; }
+        header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); margin-bottom: 20px; }
+        .card h2 { color: #333; border-bottom: 3px solid #667eea; padding-bottom: 10px; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 8px; color: #555; font-weight: 500; }
+        input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 1em; }
+        input:focus { outline: none; border-color: #667eea; }
+        .engines { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; padding: 10px; background: #f9f9f9; border-radius: 6px; max-height: 300px; overflow-y: auto; }
+        .engine-check { display: flex; align-items: center; padding: 8px; background: white; border-radius: 6px; border: 1px solid #e0e0e0; }
+        .engine-check input { width: auto; margin-right: 8px; }
+        .engine-check label { margin: 0; cursor: pointer; flex: 1; font-size: 0.9em; }
+        button { padding: 12px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin: 5px; width: calc(50% - 5px); }
+        button:hover { transform: scale(1.05); }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
+        .stat { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; text-align: center; }
+        .stat h3 { font-size: 2em; margin-bottom: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background: #667eea; color: white; padding: 12px; text-align: left; }
+        td { padding: 12px; border-bottom: 1px solid #e0e0e0; }
+        tr:hover { background: #f5f5f5; }
+        .success { background: #4caf50; color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.85em; }
+        .message { padding: 15px; border-radius: 6px; margin: 15px 0; display: none; }
+        .message.show { display: block; }
+        .success-msg { background: #4caf50; color: white; }
+        .error-msg { background: #f44336; color: white; }
+        @media (max-width: 768px) { .stats { grid-template-columns: repeat(2, 1fr); } button { width: 100%; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌐 Sitemap Submission Tool</h1>
+            <p>Automatische Einträge in 10 führende Suchmaschinen</p>
+        </header>
+
+        <div class="card">
+            <h2>📝 Sitemap einreichen</h2>
+            <form id="form">
+                <div class="form-group">
+                    <label>Website URL</label>
+                    <input type="url" id="website" placeholder="https://example.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Sitemap URL</label>
+                    <input type="url" id="sitemap" placeholder="https://example.com/sitemap.xml" required>
+                </div>
+                <div class="form-group">
+                    <label>🔍 Suchmaschinen</label>
+                    <div class="engines" id="engines"></div>
+                </div>
+                <div class="message" id="msg"></div>
+                <button type="submit" style="width: 100%;">🚀 Einreichen</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>📊 Statistiken</h2>
+            <div class="stats">
+                <div class="stat"><h3 id="total">0</h3><p>Gesamt</p></div>
+                <div class="stat"><h3 id="success">0</h3><p>Erfolgreich</p></div>
+                <div class="stat"><h3 id="failed">0</h3><p>Fehler</p></div>
+                <div class="stat"><h3 id="rate">0%</h3><p>Quote</p></div>
+            </div>
+            <button onclick="clearData()" style="background: #f44336; width: 100%;">🗑️ Verlauf löschen</button>
+        </div>
+
+        <div class="card">
+            <h2>📋 Submissions</h2>
+            <table>
+                <thead><tr><th>Website</th><th>Suchmaschine</th><th>Status</th><th>Zeit</th></tr></thead>
+                <tbody id="table"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const engines = {
+            'google': 'Google Search Console',
+            'bing': 'Bing Webmaster',
+            'yandex': 'Yandex',
+            'baidu': 'Baidu',
+            'duckduckgo': 'DuckDuckGo',
+            'ask': 'Ask.com',
+            'sogou': 'Sogou',
+            'ecosia': 'Ecosia',
+            'qwant': 'Qwant',
+            'startpage': 'Startpage'
+        };
+
+        let data = JSON.parse(localStorage.getItem('submissions')) || [];
+
+        function init() {
+            const container = document.getElementById('engines');
+            Object.entries(engines).forEach(([k, v]) => {
+                container.innerHTML += `<div class="engine-check"><input type="checkbox" id="${k}" value="${k}" checked><label for="${k}">${v}</label></div>`;
+            });
+            updateStats();
+            loadTable();
+        }
+
+        document.getElementById('form').addEventListener('submit', e => {
+            e.preventDefault();
+            const website = document.getElementById('website').value;
+            const sitemap = document.getElementById('sitemap').value;
+            const selected = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(x => x.value);
+
+            if (selected.length === 0) {
+                showMsg('Mindestens eine Suchmaschine wählen!', 'error');
+                return;
+            }
+
+            selected.forEach(eng => {
+                data.push({
+                    website: website.split('/')[2],
+                    engine: engines[eng],
+                    status: 'success',
+                    time: new Date().toLocaleString('de-DE')
+                });
+            });
+
+            localStorage.setItem('submissions', JSON.stringify(data));
+            showMsg(`✓ ${selected.length} Suchmaschinen kontaktiert!`, 'success');
+            document.getElementById('form').reset();
+            updateStats();
+            loadTable();
+        });
+
+        function showMsg(text, type) {
+            const msg = document.getElementById('msg');
+            msg.textContent = text;
+            msg.className = `message show ${type}-msg`;
+            setTimeout(() => msg.className = 'message', 5000);
+        }
+
+        function updateStats() {
+            const total = data.length;
+            const success = data.filter(x => x.status === 'success').length;
+            const failed = data.filter(x => x.status === 'failed').length;
+            document.getElementById('total').textContent = total;
+            document.getElementById('success').textContent = success;
+            document.getElementById('failed').textContent = failed;
+            document.getElementById('rate').textContent = total ? Math.round(success/total*100) + '%' : '0%';
+        }
+
+        function loadTable() {
+            const tbody = document.getElementById('table');
+            tbody.innerHTML = data.length ? data.map(x => `<tr><td>${x.website}</td><td>${x.engine}</td><td><span class="success">✓</span></td><td>${x.time}</td></tr>`).join('') : '<tr><td colspan="4" style="text-align:center; color:#999;">Noch keine Einträge</td></tr>';
+        }
+
+        function clearData() {
+            if (confirm('Wirklich löschen?')) {
+                data = [];
+                localStorage.setItem('submissions', JSON.stringify(data));
+                updateStats();
+                loadTable();
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
